@@ -16,13 +16,18 @@ security:
         main:
             lazy: true
             provider: app_user_provider
-            form_login:
-                login_path: login
-                check_path: login
-                default_target_path: redirect_by_role
+            custom_authenticator: App\Security\LoginFormAuthenticator
             logout:
-                path: logout
-                target: /
+                path: app_logout  # ✅ Aquí sí va "path"
+                target: app_login # A dónde redirigir tras logout
+
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 604800
+                path: /
+                # by default, the feature is enabled by checking a checkbox in the
+                # login form, uncomment the following line to always enable it.
+                #always_remember_me: true
           
 
             # activate different ways to authenticate
