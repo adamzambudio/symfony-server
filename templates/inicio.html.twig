@@ -1,66 +1,52 @@
 {% extends 'base.html.twig' %}
 
-{% block title %} Bienvenido al mejor sitio del mundo {%  endblock %}
-{% block header %}
-    <h2>Este es mi encabezado</h2>
-{% endblock %}
+{% block title %}ComoEnCasa - Tu alojamiento ideal{% endblock %}
+
+{% block header %}{% endblock %}
+
 {% block body %}
-<div class="container">
-    <div class="jumbotron mt-3">
-        <h1 class="display-3">Bienvenido a CEC</h1>
-        <p class="lead">Ponemos en contacto a viajeros y propietarios que quieren aprovechar oportunidades y ganar dinero ofreciendo su propiedad en alquiler.</p>
-        <hr class="my-4">
-        <p>¿Eres viajero? ¿Quieres ver dónde puedes alojarte en tu próximo viaje?</p>
-        <p class="lead">
-            <a class="btn btn-primary btn-lg" href="/ads" role="button">Ver nuestros anuncios</a>
-        </p>
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4">Bienvenido a <strong>CEC - ComoEnCasa</strong></h1>
+        <p class="lead text-muted">Tu próximo alojamiento te está esperando. Encuentra lugares únicos para alojarte con anfitriones de confianza.</p>
+        <a href="/ads" class="btn btn-primary btn-lg mt-3">Explorar alojamientos</a>
     </div>
 
-    <h2 class="h1 mt-5 mb-4">Nuestros apartamentos destacados</h2>
-
-    <div class="row mt-5">
-        <div class="col-md-4">
-            <div class="card bg-light mb3">
-                <div class="card-header text-center">
-                    3 habitaciones, <b>49 noches</b> <br>
-                    <small>Aún no calificado</small>
-                </div>
-
-                <img src="http://placehold.it/1000x400" alt="Imagen del apartamento" style="height: 200px; width: 100%; display: block">
-
+    <h2 class="mb-4">🏠 Alojamientos destacados</h2>
+    <div class="row">
+        {% for i in 1..3 %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <img src="https://placehold.co/600x400" class="card-img-top" alt="Apartamento {{ i }}">
                 <div class="card-body">
-                    <h4 class="card-title">
-                        ¡Apartamento increíble!
-                    </h4>
-                    <p class="card-text">
-                        Lorem ipsum dolor sit amet, consectetur adipisicing elit. At beatae consectetur distinctio, dolor dolorum excepturi hic illo modi nam vero!
-                    </p>
-                    <a href="#" class="btn btn-primary">Saber más</a>
+                    <h5 class="card-title">Apartamento moderno {{ i }}</h5>
+                    <p class="card-text text-muted">Confort y estilo en cada rincón. Perfecto para viajeros exigentes.</p>
+                    <span class="badge bg-secondary mb-2">⭐ 4.8 (23 opiniones)</span><br>
+                    <a href="#" class="btn btn-outline-primary btn-sm">Ver más</a>
                 </div>
             </div>
         </div>
-        <!-- Repetir estructura para otros apartamentos -->
+        {% endfor %}
     </div>
 
-    <h2 class="h1 mt-5 mb-4">Nuestros propietarios destacados</h2>
-
+    <h2 class="mb-4 mt-5">👤 Anfitriones destacados</h2>
     <div class="row">
-        <div class="col">
-            <div class="card border-secondary mb-3">
-                <div class="card-body">
-                    <h4 class="card-title">Juan Pérez</h4>
-                    
-                    <hr>
-                    
-                    <div class="card-text">
-                        <img src="http://placehold.it/64x64" alt="Avatar de Juan Pérez" class="float-left mr-3">
-                        <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Error, iure.</p>
-                        <a href="#" class="btn btn-success float-right">Saber más</a>
+        {% for i in 1..3 %}
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body d-flex align-items-center">
+                    <img src="https://placehold.co/80x80" class="rounded-circle me-3" alt="Anfitrión {{ i }}">
+                    <div>
+                        <h6 class="mb-1">Anfitrión {{ i }}</h6>
+                        <p class="text-muted small mb-2">Experto en hospitalidad</p>
+                        <a href="#" class="btn btn-sm btn-outline-success">Perfil</a>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Repetir estructura para otros propietarios -->
+        {% endfor %}
     </div>
 </div>
 {% endblock %}
+
+{% block footer %}
