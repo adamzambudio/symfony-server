@@ -1,5 +1,23 @@
+# config/routes.yaml
 controllers:
-    resource:
-        path: ../src/Controller/
-        namespace: App\Controller
+    resource: ../src/Controller/
     type: attribute
+# Ruta para el login via JSON (LexikJWTAuthenticationBundle)
+api_login_check:
+    path:       /api/login_check
+    controller: App\Controller\DefaultController::test
+    methods:    [POST]
+
+login_check:
+    path: /api/login_check
+
+
+
+# Notas para Postman:
+# - URL: http://localhost:8000/api/login_check
+# - Body (JSON):
+#   {
+#     "username": "frm666@gmail.com",
+#     "password": "password"
+#   }
+# - Tras la respuesta, copia el "token" y úsalo en Authorization → Bearer <token>
