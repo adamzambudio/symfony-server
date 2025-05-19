@@ -3,54 +3,81 @@
 namespace App\Controller;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Core\Exception\AuthenticationException;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Core\Security;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Symfony\Component\Security\Core\User\UserProviderInterface;
 
-class SecurityController extends AbstractController
+class ApiSecurityController extends AbstractController
 {
-    #[Route(path: '/login', name: 'app_login')]
-    public function login(AuthenticationUtils $authenticationUtils): Response
+    private $jwtManager;
+    private $userProvider;
+
+    public function __construct(JWTTokenManagerInterface $jwtManager, UserProviderInterface $userProvider)
     {
-        // if ($this->getUser()) {
-        //     return $this->redirectToRoute('target_path');
-        // }
-
-        // get the login error if there is one
-        $error = $authenticationUtils->getLastAuthenticationError();
-        // last username entered by the user
-        $lastUsername = $authenticationUtils->getLastUsername();
-
-        return $this->render('security/login.html.twig', ['last_username' => $lastUsername, 'error' => $error]);
+        $this->jwtManager = $jwtManager;
+        $this->userProvider = $userProvider;
     }
-    #[Route('/redirect-by-role', name: 'redirect_by_role')]
-    public function redirectAfterLogin(Security $security): Response
-    {
-        $user = $security->getUser();
 
-        if (in_array('ROLE_HOST', $user->getRoles())) {
-            return $this->redirectToRoute('host_dashboard');
+    #[Route('/api/login', name: 'api_login', methods: ['POST'])]
+    public function login(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+
+        $email = $data['email'] ?? null;
+        $password = $data['password'] ?? null;
+
+        if (!$email || !$password) {
+            return $this->json(['error' => 'Email y password son requeridos'], 400);
         }
 
-        return $this->redirectToRoute('user_dashboard');
+        // Aquí debes autenticar manualmente o usar el firewall de Symfony con JWT (mejor)
+        // Este ejemplo es simplificado, deberías usar guard authenticators o el bundle JWT
+
+        // Para simplificar, vamos a buscar el usuario
+        $user = $this->userProvider->loadUserByUsername($email);
+
+        if (!$user) {
+            return $this->json(['error' => 'Usuario no encontrado'], 404);
+        }
+
+        // Verificar contraseña
+        if (!password_verify($password, $user->getPassword())) {
+            return $this->json(['error' => 'Credenciales incorrectas'], 401);
+        }
+
+        $token = $this->jwtManager->create($user);
+
+        return $this->json([
+            'token' => $token,
+            'user' => [
+                'id' => $user->getId(),
+                'name' => $user->getName(),
+                'email' => $user->getEmail(),
+                'roles' => $user->getRoles(),
+                'picture' => $user->getPicture(),
+            ]
+        ]);
     }
 
-    #[Route('/user/dashboard', name: 'user_dashboard')]
-    public function userDashboard(): Response
+    #[Route('/api/redirect-by-role', name: 'api_redirect_by_role', methods: ['GET'])]
+    public function redirectByRole(Security $security): JsonResponse
     {
-        return $this->render('inicio.html.twig');
-        // return $this->render('user/dashboard.html.twig');
-    }
+        /** @var UserInterface|null $user */
+        $user = $security->getUser();
 
-    #[Route('/host/dashboard', name: 'host_dashboard')]
-    public function hostDashboard(): Response
-    {
-        return $this->render('host/dashboard.html.twig');
-    }
+        if (!$user) {
+            return $this->json(['error' => 'No autenticado'], 401);
+        }
 
-    #[Route(path: '/logout', name: 'app_logout')]
-    public function logout(): void
-    {
-        throw new \LogicException('This method can be blank - it will be intercepted by the logout key on your firewall.');
+        if (in_array('ROLE_HOST', $user->getRoles())) {
+            return $this->json(['redirectTo' => '/host/dashboard']);
+        }
+
+        return $this->json(['redirectTo' => '/user/dashboard']);
     }
 }
