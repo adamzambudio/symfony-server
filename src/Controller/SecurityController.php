@@ -12,7 +12,7 @@ use Symfony\Component\Security\Core\Security;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
-class ApiSecurityController extends AbstractController
+class SecurityController extends AbstractController
 {
     private $jwtManager;
     private $userProvider;
