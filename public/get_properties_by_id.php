@@ -4,7 +4,7 @@ header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json, charset=utf-8');
 
 $host = 'localhost';
-$dbname = 'tfg';
+$dbname = 'tfgg';
 $username = 'root';
 $password = '';
 

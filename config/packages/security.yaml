@@ -34,4 +34,16 @@ security:
 
     access_control:
         - { path: ^/api/login_check, roles: PUBLIC_ACCESS }
+        - { path: ^/api/properties, roles: PUBLIC_ACCESS, methods: [GET] } 
+        - { path: ^/api/properties/cities, roles: PUBLIC_ACCESS }
+        - { path: ^/api/properties/types, roles: PUBLIC_ACCESS }
+        - { path: ^/api/properties/prices, roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+         # 3) Para POST a /api/properties (creación) SOLO ADMIN
+        - { path: ^/api/properties$,       roles: ROLE_ADMIN, methods: [POST] }
+
+         # 4) Para PUT/PATCH a /api/properties/{id} (actualizar) SOLO ADMIN
+        - { path: ^/api/properties/\d+$,   roles: ROLE_ADMIN, methods: [PUT, PATCH] }
+
+        # 5) Para DELETE a /api/properties/{id} (borrar) SOLO ADMIN
+        - { path: ^/api/properties/\d+$,   roles: ROLE_ADMIN, methods: [DELETE] }

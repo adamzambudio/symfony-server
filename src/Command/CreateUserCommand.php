@@ -31,19 +31,30 @@ class CreateUserCommand extends Command
             ->setDescription('Create a new user')
             ->addArgument('email', InputArgument::REQUIRED, 'The email of the user')
             ->addArgument('name', InputArgument::REQUIRED, 'The full name of the user')
-            ->addArgument('password', InputArgument::REQUIRED, 'The plain password of the user');
+            ->addArgument('password', InputArgument::REQUIRED, 'The plain password of the user')
+            ->addArgument('role', InputArgument::OPTIONAL, 'Role to assign (e.g. ROLE_USER or ROLE_ADMIN)', 'ROLE_USER');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output): int
+     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $email = $input->getArgument('email');
         $name = $input->getArgument('name');
         $plainPassword = $input->getArgument('password');
+        $role = strtoupper($input->getArgument('role'));
+
+        // Validamos que el rol sea uno de los permitidos
+        if (!in_array($role, ['ROLE_USER', 'ROLE_ADMIN'])) {
+            $output->writeln(sprintf(
+                'Rol inválido "%s". Use ROLE_USER o ROLE_ADMIN.',
+                $role
+            ));
+            return Command::FAILURE;
+        }
 
         $user = new User();
         $user->setEmail($email);
         $user->setName($name);
-        $user->setRoles(['ROLE_USER']); // o el rol que quieras asignar
+        $user->setRoles([$role]);
 
         $hashedPassword = $this->passwordHasher->hashPassword($user, $plainPassword);
         $user->setPassword($hashedPassword);
@@ -51,7 +62,11 @@ class CreateUserCommand extends Command
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
-        $output->writeln(sprintf('Usuario "%s" creado con éxito.', $email));
+        $output->writeln(sprintf(
+            'Usuario "%s" creado con éxito con rol "%s".',
+            $email,
+            $role
+        ));
 
         return Command::SUCCESS;
     }

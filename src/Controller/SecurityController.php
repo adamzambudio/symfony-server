@@ -39,7 +39,7 @@ class SecurityController extends AbstractController
         // Este ejemplo es simplificado, deberías usar guard authenticators o el bundle JWT
 
         // Para simplificar, vamos a buscar el usuario
-        $user = $this->userProvider->loadUserByIdentifier($email);
+        $user = $this->userProvider->loadUserByUsername($email);
 
         if (!$user) {
             return $this->json(['error' => 'Usuario no encontrado'], 404);
