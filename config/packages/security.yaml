@@ -33,6 +33,7 @@ security:
             security: false
 
     access_control:
+        - { path: ^/api/register, roles: PUBLIC_ACCESS }
         - { path: ^/api/login_check, roles: PUBLIC_ACCESS }
         - { path: ^/api/properties, roles: PUBLIC_ACCESS, methods: [GET] } 
         - { path: ^/api/properties/cities, roles: PUBLIC_ACCESS }
