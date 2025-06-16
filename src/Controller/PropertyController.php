@@ -10,6 +10,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use App\Entity\Image;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class PropertyController extends AbstractController
 {
@@ -223,6 +225,48 @@ class PropertyController extends AbstractController
         ]);
     }
 
+    #[Route("/api/properties/{id}/update-with-images", name: "update_with_images", methods: ["POST"])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function updateWithImages(int $id, Request $request): JsonResponse
+    {
+        $property = $this->repo->find($id);
+        if (!$property) {
+            return $this->json(['error' => 'Property not found'], 404);
+        }
+
+        // Campos básicos desde formulario
+        $property->setTitle($request->get('title'));
+        $property->setAddress($request->get('address'));
+        $property->setDescription($request->get('description'));
+        $property->setPrice((float) $request->get('price'));
+        $property->setCity($request->get('city'));
+        $property->setType($request->get('type'));
+        $property->setCp((int) $request->get('cp'));
+
+        /** @var UploadedFile[] $uploadedFiles */
+        $uploadedFiles = $request->files->all()['images'] ?? [];
+
+        foreach ($uploadedFiles as $file) {
+            if ($file instanceof UploadedFile && $file->isValid()) {
+                $fileName = uniqid() . '.' . $file->guessExtension();
+                $file->move($this->getParameter('image_directory'), $fileName);
+
+                $image = new Image();
+                $image->setUrl($fileName);
+                $image->setProperty($property);
+
+                $this->em->persist($image);
+            }
+        }
+
+        $this->em->flush();
+
+        return $this->json([
+            'message' => 'Property actualizada con imágenes',
+            'property' => $this->serializeProperty($property)
+        ]);
+    }
+
     #[Route("/api/properties/{id}", name: "delete", methods: ["DELETE"])]
     #[IsGranted('ROLE_ADMIN')]
     public function delete(int $id): JsonResponse
@@ -252,7 +296,7 @@ class PropertyController extends AbstractController
             'city'        => $p->getCity(),
             'type'        => $p->getType(),
             'cp'          => $p->getCp(),
-            'images'      => array_map(fn($img) => 'img/' . $img->getUrl(), $p->getImages()->toArray())
+            'images' => array_map(fn($img) => $this->getParameter('app.base_url') . '/img/' . $img->getUrl(), $p->getImages()->toArray())
         ];
     }
 }
