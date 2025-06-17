@@ -11,17 +11,23 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Entity\Image;
+use App\Repository\ImageRepository;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Filesystem\Filesystem;
 
 class PropertyController extends AbstractController
 {
     private EntityManagerInterface $em;
     private PropertyRepository $repo;
+    private Filesystem $filesystem;
+    private ImageRepository $imageRepo;
 
-    public function __construct(EntityManagerInterface $em, PropertyRepository $repo)
+    public function __construct(EntityManagerInterface $em, PropertyRepository $repo, Filesystem $filesystem, ImageRepository $imageRepo,)
     {
         $this->em = $em;
         $this->repo = $repo;
+        $this->filesystem = $filesystem;
+        $this->imageRepo = $imageRepo;
     }
 
     #[Route('/api/properties', name: 'api_properties', methods: ['GET'])]
@@ -146,16 +152,25 @@ class PropertyController extends AbstractController
     #[IsGranted('ROLE_ADMIN')]
     public function create(Request $request): JsonResponse
     {
-        $payload = json_decode($request->getContent(), true);
+        // Para FormData, accede a los parámetros directamente desde $request->request->get()
+        // No es necesario json_decode
+        $title = $request->request->get('title');
+        $address = $request->request->get('address');
+        $description = $request->request->get('description');
+        $price = $request->request->get('price');
+        $city = $request->request->get('city');
+        $type = $request->request->get('type');
+        $cp = $request->request->get('cp');
 
+        // Validación básica para campos obligatorios
         if (
-            empty($payload['title']) ||
-            !isset($payload['address']) ||
-            empty($payload['description']) ||
-            !isset($payload['price']) ||
-            empty($payload['city']) ||
-            empty($payload['type']) ||
-            !isset($payload['cp'])
+            empty($title) ||
+            !isset($address) || // La dirección puede ser nula, así que verifica con isset en lugar de empty
+            empty($description) ||
+            !isset($price) ||
+            empty($city) ||
+            empty($type) ||
+            !isset($cp)
         ) {
             return $this->json([
                 'error' => 'Faltan campos obligatorios: title, address (nullable), description, price, city, type, cp'
@@ -163,14 +178,43 @@ class PropertyController extends AbstractController
         }
 
         $property = new Property();
-        $property->setTitle($payload['title']);
-        $property->setAddress($payload['address']);
-        $property->setDescription($payload['description']);
-        $property->setPrice((float)$payload['price']);
+        $property->setTitle($title);
+        $property->setAddress($address);
+        $property->setDescription($description);
+        $property->setPrice((float)$price);
         $property->setCreatedAt(new \DateTimeImmutable());
-        $property->setCity($payload['city']);
-        $property->setType($payload['type']);
-        $property->setCp((int)$payload['cp']);
+        $property->setCity($city);
+        $property->setType($type);
+        $property->setCp((int)$cp);
+
+        // --- Manejo de la subida de imágenes ---
+        /** @var UploadedFile[] $uploadedFiles */
+        // Accede a los archivos subidos usando $request->files->get('nombre_del_campo_en_el_frontend')
+        // En tu caso, es 'images'
+        $uploadedFiles = $request->files->get('images');
+
+        if ($uploadedFiles instanceof UploadedFile) {
+            // Si es un solo archivo, lo convertimos a un array que lo contiene
+            $uploadedFiles = [$uploadedFiles];
+        } elseif (!is_array($uploadedFiles)) {
+            // Si no es un archivo ni un array (ej. null), lo convertimos a un array vacío
+            $uploadedFiles = [];
+        }
+
+        foreach ($uploadedFiles as $file) {
+            if ($file instanceof UploadedFile && $file->isValid()) {
+                $fileName = uniqid() . '.' . $file->guessExtension();
+                $file->move($this->getParameter('image_directory'), $fileName);
+
+                $image = new Image();
+                $image->setUrl($fileName);
+                $image->setProperty($property);
+                $this->em->persist($image);
+            } else {
+                // Opcional: loguear por qué un archivo no es válido
+                error_log('Archivo no válido o no es UploadedFile: ' . ($file ? $file->getClientOriginalName() : 'N/A'));
+            }
+        }
 
         $this->em->persist($property);
         $this->em->flush();
@@ -180,6 +224,7 @@ class PropertyController extends AbstractController
             'property' => $this->serializeProperty($property)
         ], 201);
     }
+
 
     #[Route("/api/properties/{id}", name: "update", methods: ["PUT", "PATCH"])]
     #[IsGranted('ROLE_ADMIN')]
@@ -267,6 +312,40 @@ class PropertyController extends AbstractController
         ]);
     }
 
+
+    #[Route("/api/images/{id}", name: "delete_image", methods: ["DELETE"])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function deleteImage(int $id): JsonResponse
+    {
+        $image = $this->imageRepo->find($id);
+
+        if (!$image) {
+            return $this->json(['error' => 'Image not found'], 404);
+        }
+
+        // Obtener la ruta del directorio de imágenes
+        $imageDirectory = $this->getParameter('image_directory');
+        $imagePath = $imageDirectory . '/' . $image->getUrl(); // Asumiendo que getUrl() te da el nombre del archivo
+
+        // Eliminar el archivo físico
+        if ($this->filesystem->exists($imagePath)) {
+            try {
+                $this->filesystem->remove($imagePath);
+            } catch (\Exception $e) {
+                // Loguear error si no se puede borrar el archivo, pero continuar para borrar de BD
+                error_log('Error deleting image file: ' . $e->getMessage());
+                return $this->json(['error' => 'Error al eliminar el archivo de imagen'], 500);
+            }
+        }
+
+        // Eliminar la entrada de la imagen de la base de datos
+        $this->em->remove($image);
+        $this->em->flush();
+
+        return $this->json(['message' => 'Imagen eliminada correctamente.'], 200);
+    }
+
+    
     #[Route("/api/properties/{id}", name: "delete", methods: ["DELETE"])]
     #[IsGranted('ROLE_ADMIN')]
     public function delete(int $id): JsonResponse
@@ -276,27 +355,44 @@ class PropertyController extends AbstractController
             return $this->json(['error' => 'Property not found'], 404);
         }
 
+        // Obtener la ruta del directorio de imágenes
+        $imageDirectory = $this->getParameter('image_directory');
+
+        // Eliminar las imágenes físicas asociadas a la propiedad
+        foreach ($property->getImages() as $image) {
+            $imagePath = $imageDirectory . '/' . $image->getUrl();
+            if ($this->filesystem->exists($imagePath)) {
+                $this->filesystem->remove($imagePath);
+            }
+            // Doctrine se encargará de eliminar la entidad Image de la BD si la relación
+            // está configurada con cascade={"remove"} o orphanRemoval=true.
+            // Si no, también deberías hacer $this->em->remove($image); aquí.
+        }
+
         $this->em->remove($property);
         $this->em->flush();
 
         return $this->json([
-            'message' => 'Property eliminada correctamente'
+            'message' => 'Property eliminada correctamente, incluyendo sus imágenes.'
         ], 200);
     }
 
     private function serializeProperty(Property $p): array
     {
         return [
-            'id'          => $p->getId(),
-            'title'       => $p->getTitle(),
-            'address'     => $p->getAddress(),
-            'description' => $p->getDescription(),
-            'price'       => $p->getPrice(),
-            'createdAt'   => $p->getCreatedAt()?->format('Y-m-d H:i:s'),
-            'city'        => $p->getCity(),
-            'type'        => $p->getType(),
-            'cp'          => $p->getCp(),
-            'images' => array_map(fn($img) => $this->getParameter('app.base_url') . '/img/' . $img->getUrl(), $p->getImages()->toArray())
+            'id'            => $p->getId(),
+            'title'         => $p->getTitle(),
+            'address'       => $p->getAddress(),
+            'description'   => $p->getDescription(),
+            'price'         => $p->getPrice(),
+            'createdAt'     => $p->getCreatedAt()?->format('Y-m-d H:i:s'),
+            'city'          => $p->getCity(),
+            'type'          => $p->getType(),
+            'cp'            => $p->getCp(),
+            'images'        => array_map(fn($img) => [
+                'id' => $img->getId(), // <--- ¡Importante: Añadir el ID de la imagen!
+                'url' => $this->getParameter('app.base_url') . '/img/' . $img->getUrl()
+            ], $p->getImages()->toArray())
         ];
     }
 }
