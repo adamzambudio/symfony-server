@@ -1,10 +1,15 @@
+# config/packages/nelmio_cors.yaml
 nelmio_cors:
     defaults:
-        origin_regex: true
-        allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
-        allow_methods: ['GET', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']
+        allow_origin: ['*'] # Puedes poner '*' para probar, luego limitamos
+        allow_credentials: true
         allow_headers: ['Content-Type', 'Authorization']
-        expose_headers: ['Link']
+        allow_methods: ['GET', 'OPTIONS', 'POST', 'PUT', 'DELETE']
         max_age: 3600
     paths:
-        '^/': null
+        '^/api/':
+            allow_origin: ['http://www.comoencasa.space']
+            allow_methods: ['GET', 'OPTIONS', 'POST', 'PUT', 'DELETE']
+            allow_headers: ['Content-Type', 'Authorization']
+            max_age: 3600
+
